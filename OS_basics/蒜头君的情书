@@ -1,0 +1,48 @@
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+
+const int MAX_LENGTH = 256;
+
+char* get_letter(void) {
+    static char letter[1000000];
+    letter[999999] = ' ';
+    char *p = letter;
+    int size = MAX_LENGTH;
+    while (feof(stdin) == 0) {
+        if (size == 0) {
+            break;
+        }
+        fgets(p, size + 1, stdin);
+        while (*p != '\0') {
+            p++;
+            size--;
+        }
+    }
+    return letter;
+}
+
+int main() {
+    char *str = get_letter();    //将字符串读进str
+    char *str_copy = malloc(MAX_LENGTH * sizeof(char));   //申请复制字符串的堆空间
+    strcpy(str_copy, str);    //复制字符串
+    char *compar;    
+    char delimiters[20] = "\t\n\r ',.\"";    //遇到这些字符作为分割,  \转义"
+    char love[10] = "love";     //设置比较love
+    int count = 0;
+    while(compar != NULL)
+        printf("%s\n", compar);
+        if(strcmp(compar, love) == 0) {
+            count++;
+        }
+        compar = strtok(NULL, delimiters);     //分割字符
+    }
+    printf("%d\n", count);
+    // 在此处添加你的代码
+    //printf("%s", str);
+    puts(str);
+    free(str_copy);
+    return 0;
+}
+
+#undef MAX_LENGTH
