@@ -1744,14 +1744,392 @@ int emptyStack(Stack *s) {
     return !(s->top);
 }
 
+/*********************************************************************/
+
+
+
+#include <iostream>
+#include <cstdlib>
+#include <cstring>
+using namespace std;
+class Element {
+private:
+    int number;
+public:
+    Element() :number(0) {
+        cout << "ctor" << endl;
+    }
+    Element(int num):number(num) {
+        cout << "ctor" << endl;
+    }
+    Element(const Element& e):number(e.number) {
+        cout << "copy ctor" << endl;
+    }
+    Element(Element&& e):number(e.number) {
+        cout << "right value ctor" << endl;
+    }
+    ~Element() {
+        cout << "dtor" << endl;
+    }
+    void operator=(const Element& item) {
+        number = item.number;
+    }
+    bool operator==(const Element& item) {
+        return (number == item.number);
+    }
+    void operator()() {
+        cout << number ;
+    }
+    int GetNumber() {
+        return number;
+    }
+};
+template<typename T>
+class Vector {
+private:
+    T* items;
+    int count;
+public:
+    Vector() :count{ 0 }, items{nullptr} {
+        
+    }
+    Vector(const Vector& vector) :count{vector.count} {
+        items = static_cast<T*>(malloc(sizeof(T) * count));
+        memcpy(items, vector.items, sizeof(T) * count);
+    }
+    Vector(Vector&& vector) :count{ vector.count }, items{ vector.items } {
+        vector.items = nullptr;
+        vector.count = 0;
+    }
+    ~Vector() {
+        for (int i = 0; i < this->count; i++) {
+            this->items[i].~Element();
+        }
+        free(this->items);
+        this->items = nullptr;
+        this->count = 0;
+    }
+    T& operator[](int index){
+        if (index<0||index>=count) {
+            cout<<"invalid index"<<endl;
+            return items[0];
+        }
+        return items[index];
+    }
+    int returnCount(){
+        return count;
+    }
+    void Clear() {
+        for (int i = 0; i < this->count; i++) {
+            this->items[i].~Element();
+        }
+        free(this->items);
+        this->items = nullptr;
+        this->count = 0;
+    }
+    
+    void Add(const T& item) { 
+        T *buffer = (T *)malloc(sizeof(T) * (this->count + 1));
+        for (int i = 0; i < this->count; i++) {
+            new(buffer + i)Element(std::move(this->items[i]));
+        }
+        new(buffer + this->count)Element(item);
+        int total_count = this->count + 1;
+        this->Clear();
+        this->count = total_count;
+        this->items = buffer;
+        return ;
+    }
+    bool Insert(const T& item,int index) {
+        if (index < 0 || index > this->count) return false;
+        T *buffer = (T *)malloc(sizeof(T) * (this->count + 1));
+        for (int i = this->count; i > index; --i) {
+            new(buffer + i)Element(std::move(this->items[i - 1]));
+        }
+        new(buffer + index)Element(item);
+        for (int i = index - 1; i >= 0; --i) {
+            new(buffer + i)Element(std::move(this->items[i]));
+        }
+        int total_count = this->count + 1;
+        this->Clear();
+        this->count = total_count;
+        this->items = buffer;
+        return true;
+    }
+    bool Remove(int index) {
+        if (index < 0 || index >= this->count) return false;
+        T *buffer = (T *)malloc(sizeof(T) * (this->count - 1));
+        for (int i = 0; i < this->count - 1; i++) {
+            new(buffer + i)Element(std::move(this->items[i + (i >= index)]));
+        }
+        int total_count = this->count - 1;
+        this->Clear();
+        this->count = total_count;
+        this->items = buffer;
+        return true;
+    }
+    int Contains(const T& item) {
+        for (int i = 0; i < this->count; i++) {
+            if (this->items[i] == item) return i;
+        }
+        return -1;
+    }
+};
+template<typename T>
+void PrintVector(Vector<T>& v){
+    int count=v.returnCount();
+    for (int i = 0; i < count; i++)
+    {
+        v[i]();
+        cout << " ";
+    }
+    cout << endl;
+}
+int main() {
+    Vector<Element>v;
+    for (int i = 0; i < 4; i++) {
+        Element e(i);
+        v.Add(e);
+    }
+    PrintVector(v);
+    Element e2(4);
+    if (!v.Insert(e2, 10))
+    {
+        v.Insert(e2, 2);
+    }
+    PrintVector(v);
+    if (!v.Remove(10))
+    {
+        v.Remove(2);
+    }
+    PrintVector(v);
+    Element e3(1), e4(10);
+    cout << v.Contains(e3) << endl;
+    cout << v.Contains(e4) << endl;
+    Vector<Element>v2(v);
+    Vector<Element>v3(move(v2));
+    PrintVector(v3);
+    v2.Add(e3);
+    PrintVector(v2);
+    return 0;
+}
+
+/********************************************************/
+/*
+* @Author: alivedreams
+* @Date:   2017-10-24 17:53:08
+* @Last Modified by:   alivedreams
+* @Last Modified time: 2017-10-25 15:46:18
+*/
+#include <iostream>
+#include <string>
+#include <cstdlib>
+#include <memory>
+using namespace std;
+
+enum class BinaryOpt {
+    PLUS,
+    MINUS,
+    MUTIL,
+    DIVIDE
+};
+
+class BinaryExpr;
+class NumberExpr;
+
+class Expr {
+public:
+    class IVisitor {
+    public:
+        virtual void Visit(BinaryExpr *) = 0;
+        virtual void Visit(NumberExpr *) = 0;       
+    };
+    //Expr() = delete;
+    virtual void Accept(IVisitor *) = 0;
+    virtual ~Expr() = 0;
+};
+Expr::~Expr() {}
+
+class BinaryExpr : public Expr{
+public:
+    BinaryExpr(Expr *first, BinaryOpt Op, Expr *second):
+        first(first), second(second), Op(Op) {}
+    virtual void Accept(IVisitor *visitor) {
+        visitor->Visit(this);
+    }
+    std::shared_ptr<Expr> GetFirst() {return first;}
+    std::shared_ptr<Expr> GetSecond() {return second;}
+    BinaryOpt GetOp() {return Op;}
+    virtual ~BinaryExpr() {}
+
+private:
+    std::shared_ptr<Expr> first;
+    std::shared_ptr<Expr> second;
+    BinaryOpt Op;
+};
+
+class NumberExpr : public Expr{
+public:
+    NumberExpr(int Value) : Value(Value) {}
+    virtual void Accept(IVisitor *visitor) {
+        visitor->Visit(this);
+    }
+    int GetValue() {return Value;}
+    virtual ~NumberExpr() {}
+private:
+    int Value;
+
+};
+
+BinaryOpt CharToOpt(char ch) {
+    switch (ch) {
+        case '+' :
+            return BinaryOpt::PLUS;
+        case '-' :
+            return BinaryOpt::MINUS;
+        case '*' :
+            return BinaryOpt::MUTIL;
+        case '/' :
+            return BinaryOpt::DIVIDE;
+    }
+    return BinaryOpt::PLUS;
+}
+
+Expr *__Parser(const char *&Read) {
+    if (Read[0] == '(') {
+        Read++;
+        BinaryOpt Op = CharToOpt(Read[0]);
+        Read++;
+        while (Read[0] == ' ') Read++;
+        Expr *first = __Parser(Read);
+        while (Read[0] == ' ') Read++;
+        Expr *second = __Parser(Read);
+        Read++;
+        return new BinaryExpr(first, Op, second); 
+    } else {
+        int num = 0;
+        while (Read[0] != ' ' && Read[0] != ')') {
+            num = num * 10 + (Read[0] - '0');
+            Read++;
+        }
+        //cout << num << endl;
+        return new NumberExpr(num);
+    }
+}
+
+Expr *Parser(const char *Read) {
+
+    return __Parser(Read);
+}
+
+class CalcNumber : public Expr::IVisitor {
+public:
+    int result;
+    virtual void Visit(BinaryExpr *node) {
+        CalcNumber firstV, secondV;
+        node->GetFirst()->Accept(&firstV);
+        node->GetSecond()->Accept(&secondV);
+        switch (node->GetOp()) {
+            case BinaryOpt::PLUS :
+                this->result = firstV.result + secondV.result;
+                break;
+            case BinaryOpt::MINUS :
+                this->result = firstV.result - secondV.result;
+                break;
+            case BinaryOpt::MUTIL :
+                this->result = firstV.result * secondV.result;
+                break;
+            case BinaryOpt::DIVIDE :
+                this->result = firstV.result / secondV.result;
+                break;
+        }
+    }
+    virtual void Visit(NumberExpr *node) {
+        this->result = node->GetValue();
+    }
+};
+
+class TransToString : public Expr::IVisitor {
+public:
+    TransToString() : result(""), tip("") {}
+    void SetTip(std::string tip) {
+        this->tip = tip;
+    }
+    static int OptToLevel(BinaryOpt Op) {
+        switch (Op) {
+            case BinaryOpt::PLUS:
+            case BinaryOpt::MINUS:
+                return 0;
+            default :
+                return 1;
+        }
+    }
+    static char GetOptChar(BinaryOpt Op) {
+        switch (Op) {
+            case BinaryOpt::PLUS: return '+';
+            case BinaryOpt::MINUS: return '-';
+            case BinaryOpt::MUTIL: return '*';
+            case BinaryOpt:: DIVIDE: return '/';
+            default :
+                break;
+        }
+        return '+';
+    }
+
+    std::string result;
+    std::string tip;
+    int level;
+    virtual void Visit(BinaryExpr *node) {
+        TransToString firstV, secondV;
+        node->GetFirst()->Accept(&firstV);
+        node->GetSecond()->Accept(&secondV);
+        this->level = TransToString::OptToLevel(node->GetOp());
+        if (firstV.level < this->level) {
+            firstV.result = "(" + firstV.result + ")";
+        }
+        if (secondV.level < this->level) {
+            secondV.result = "(" + secondV.result + ")";
+        }
+        if (node->GetOp() == BinaryOpt::MINUS || 
+            node->GetOp() == BinaryOpt::DIVIDE) {
+            if (secondV.level == this->level) {
+                secondV.result = "(" + secondV.result + ")";
+            }
+        }
+        this->result = this->tip + firstV.result + 
+                       TransToString::GetOptChar(node->GetOp()) +
+                       secondV.result;
+
+    }
+    virtual void Visit(NumberExpr *node) {
+        this->result = "";
+        int num = node->GetValue();
+        do {
+            this->result = static_cast<char>(num % 10 + '0') + this->result;
+            num /= 10;
+        }while (num);
+        this->level = 2;
+    }
+
+};
+
+
+int main() {
+    std::shared_ptr<Expr> root(Parser("(* (+ 1 2) (- 4 5))"));
+    CalcNumber ret;
+    TransToString ret2;
+    ret2.SetTip("output : ");
+    root->Accept(&ret);
+    root->Accept(&ret2);
+    cout << ret.result << endl;
+    cout << ret2.result << endl;
+    return 0;
+}
 
 
 
 
 
-
-
-
-
+ 
 
 

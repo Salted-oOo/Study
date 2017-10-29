@@ -1,4 +1,4 @@
-#include <stdio.h>
+d#include <stdio.h>
 #include <stdlib.h>
 #include "/home/alivedreams/Study/Test_file/test.h"
 
